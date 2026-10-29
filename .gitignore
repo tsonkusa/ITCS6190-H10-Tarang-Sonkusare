@@ -1,0 +1,19 @@
+# Generated input data (regenerate it with datagen.py and your seed)
+shared-folder/stream/*.jsonl
+
+# Checkpoints are local state, never committed
+shared-folder/checkpoint/*
+!shared-folder/checkpoint/.gitkeep
+
+# Spark output markers and temporary files (commit the part-...csv results, not these)
+shared-folder/output/**/_SUCCESS
+shared-folder/output/**/_spark_metadata/
+shared-folder/output/**/.*.crc
+shared-folder/output/**/_temporary/
+
+# Python
+__pycache__/
+
+# Operating system
+.DS_Store
+Thumbs.db
