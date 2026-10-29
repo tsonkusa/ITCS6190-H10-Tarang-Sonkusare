@@ -68,7 +68,36 @@ def task1_ingest():
     """
     rides = read_rides()
     # TODO
-    return None
+
+    result = (
+        rides
+        .withColumn(
+            "fare_per_km",
+            sround(col("fare_amount") / col("distance_km"), 2)
+        )
+        .select(
+            "trip_id",
+            "driver_id",
+            "distance_km",
+            "fare_amount",
+            "fare_per_km",
+            "event_time"
+        )
+    )
+
+    query = (
+        result.writeStream
+        .format("csv")
+        .outputMode("append")
+        .option("header", "true")
+        .option("timestampFormat", "yyyy-MM-dd HH:mm:ss")
+        .option("checkpointLocation", ckpt_dir)
+        .trigger(availableNow=True)
+        .start(out_dir)
+    )
+
+    return query
+
 
 
 # ---------------------------------------------------------------- Task 2: windows and watermark
@@ -84,7 +113,55 @@ def task2_fare_per_window(mode):
     """
     rides = read_rides()
     # TODO
-    return None
+
+    result = (
+        rides
+        .withWatermark("event_time", "2 minutes")
+        .groupBy(window(col("event_time"), "2 minutes"))
+        .agg(
+            count("*").alias("trips"),
+            sround(
+                ssum("fare_amount"), 2
+            ).alias("total_fare")
+        )
+        .select(
+            col("window.start").alias("window_start"),
+            col("window.end").alias("window_end"),
+            "trips",
+            "total_fare"
+        )
+    )
+
+    writer = (
+        result.writeStream
+        .outputMode(mode)
+        .option("checkpointLocation", ckpt_dir)
+        .trigger(availableNow=True)
+    )
+
+    if mode == "append":
+        query = (
+            writer
+            .format("csv")
+            .option("header", "true")
+            .option(
+                "timestampFormat",
+                "yyyy-MM-dd HH:mm:ss"
+            )
+            .start(out_dir)
+        )
+    elif mode == "update":
+        query = (
+            writer
+            .format("console")
+            .option("truncate", "false")
+            .start()
+        )
+    else:
+        raise ValueError(f"Unsupported mode: {mode}")
+
+    return query
+
 
 
 # ---------------------------------------------------------------- main
